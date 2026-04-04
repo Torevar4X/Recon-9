@@ -1,7 +1,7 @@
 # Recon 9 by TOREVAR
 
 A modular, dark-themed desktop OSINT (Open Source Intelligence) application
-built with **Python 3.10+** and **PyQt6**.
+built with **Python 3.10+** and **PyQt6**. for information gathering IPS - WEBSITES etc...
 
 ---
 
