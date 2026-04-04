@@ -22,7 +22,7 @@ built with **Python 3.10+** and **PyQt6**.
 
 ```bash
 # 1. Clone / download the project
-cd osint_app
+cd recon-9
 
 # 2. Create a virtual environment (recommended)
 python -m venv .venv
