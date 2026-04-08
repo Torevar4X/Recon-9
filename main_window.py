@@ -11,7 +11,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Callable
 
-from PyQt6.QtCore import Qt, QSize, pyqtSlot
+from PyQt6.QtCore import Qt, QSize, QPoint, QRect, pyqtSlot
 from PyQt6.QtGui import QFont, QIcon, QTextCursor, QColor, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -104,19 +104,40 @@ QComboBox {
     background-color: #161b22;
     border: 1px solid #30363d;
     border-radius: 6px;
-    padding: 5px 10px;
+    padding: 6px 32px 6px 10px;
     color: #c9d1d9;
-    min-width: 140px;
+    min-width: 200px;
 }
 QComboBox:focus          { border-color: #58a6ff; }
-QComboBox::drop-down     { border: none; width: 22px; }
-QComboBox::down-arrow    { image: none; border: none; }
+QComboBox::drop-down     { border: none; width: 28px; subcontrol-origin: padding; subcontrol-position: right center; }
+QComboBox::down-arrow    { image: none; border: none; width: 0; height: 0;
+                           border-left: 5px solid transparent;
+                           border-right: 5px solid transparent;
+                           border-top: 6px solid #8b949e; }
 QComboBox QAbstractItemView {
     background-color: #161b22;
-    border: 1px solid #30363d;
+    border: 1px solid #58a6ff;
+    border-radius: 4px;
     selection-background-color: #1f6feb;
+    selection-color: #ffffff;
     color: #c9d1d9;
-    max-height: 250px;
+    outline: none;
+    padding: 4px 0px;
+}
+QComboBox QAbstractItemView::item {
+    background-color: #161b22;
+    color: #c9d1d9;
+    padding: 7px 14px;
+    min-height: 26px;
+    border: none;
+}
+QComboBox QAbstractItemView::item:hover {
+    background-color: #21262d;
+    color: #e6edf3;
+}
+QComboBox QAbstractItemView::item:selected {
+    background-color: #1f6feb;
+    color: #ffffff;
 }
 QComboBox QAbstractScrollArea QScrollBar:vertical {
     width: 10px;
@@ -299,12 +320,14 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
 /* ── Labels ── */
 QLabel#lbl_tool_title {
     color: #e6edf3;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
+    padding-top: 4px;
+    padding-bottom: 2px;
 }
 QLabel#lbl_tool_desc {
     color: #8b949e;
-    font-size: 12px;
+    font-size: 13px;
 }
 QLabel#lbl_section {
     color: #8b949e;
@@ -375,6 +398,45 @@ TOOL_CATALOGUE: List[tuple] = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Custom ComboBox – popup anchored below widget, capped height with scrollbar
+# ─────────────────────────────────────────────────────────────────────────────
+
+class BoundedComboBox(QComboBox):
+    """QComboBox with a showPopup override that:
+    - Always opens directly below the widget (not floating off-screen)
+    - Caps visible rows at MAX_ROWS; extra items scroll
+    - Sizes popup width to fit the longest item text
+    """
+    MAX_ROWS = 12
+    ROW_H    = 32   # px per item (matches stylesheet padding)
+
+    def showPopup(self) -> None:
+        # Measure longest item
+        fm = self.fontMetrics()
+        max_tw = max((fm.horizontalAdvance(self.itemText(i))
+                      for i in range(self.count())), default=100)
+        popup_w = max(max_tw + 48, 260)          # 48 = padding + scrollbar
+
+        # Cap height to MAX_ROWS rows
+        visible   = min(self.count(), self.MAX_ROWS)
+        popup_h   = visible * self.ROW_H + 10    # +10 for view border/padding
+
+        # Position: bottom-left of the combo widget, in screen coordinates
+        pos = self.mapToGlobal(QPoint(0, self.height()))
+
+        # Apply geometry to the view's container (the floating QFrame Qt uses)
+        container = self.view().window()
+        container.setFixedSize(popup_w, popup_h)
+        container.move(pos)
+
+        super().showPopup()
+
+        # Re-apply after Qt's own showPopup adjusts things
+        container.setFixedSize(popup_w, popup_h)
+        container.move(pos)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Tool Panel base
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -424,7 +486,7 @@ class ToolPanel(QWidget):
 
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
-        line.setStyleSheet("background:#21262d;border:none;height:1px;margin:4px 0;")
+        line.setStyleSheet("background:#30363d;border:none;height:1px;margin:6px 0 10px 0;")
         self._layout.addWidget(line)
 
     # ── Field helpers ────────────────────────────────────────────────────────
@@ -469,9 +531,13 @@ class ToolPanel(QWidget):
         self._add_field(name, label, w, hint)
         return w
 
-    def _combo(self, name: str, label: str, items: List[str], hint: str = "") -> QComboBox:
-        w = QComboBox()
+    def _combo(self, name: str, label: str, items: List[str], hint: str = "") -> BoundedComboBox:
+        w = BoundedComboBox()
         w.addItems(items)
+        # Set widget width to fit the longest item
+        fm = w.fontMetrics()
+        max_tw = max((fm.horizontalAdvance(t) for t in items), default=100)
+        w.setMinimumWidth(min(max_tw + 48, 420))
         return self._add_field(name, label, w, hint)
 
     def _spin(self, name: str, label: str, lo: int, hi: int, default: int, hint: str = "") -> QSpinBox:
@@ -825,7 +891,6 @@ class NmapScanPanel(ToolPanel):
         self._text("target", "Target", "scanme.nmap.org")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._text("port_spec", "Port Override", "", hint="optional, e.g. 80,443")
         self._text("custom_flags", "Extra Flags", "", hint="e.g. --script=http-title")
         self._stretch()
@@ -859,7 +924,6 @@ class RustScanPanel(ToolPanel):
         self._text("target", "Target", "scanme.nmap.org")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._text("port_spec", "Port Range", "1-10000", hint="e.g., 1-1000 or 80,443,8080")
         self._spin("batch_size", "Batch Size", 100, 65000, 4500)
         self._spin("timeout_ms", "Timeout (ms)", 100, 10000, 1500)
@@ -883,7 +947,6 @@ class MasscanPanel(ToolPanel):
         self._text("target", "Target", "45.33.32.156", hint="IP address or subnet (e.g., 192.168.1.0/24). Hostnames auto-resolved.")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._text("ports", "Ports", "top100", hint="e.g., 80,443 or 1-1000 or top100")
         self._spin("rate", "Packets/sec", 100, 10000000, 10000)
         self._stretch()
@@ -903,7 +966,6 @@ class FpingPanel(ToolPanel):
         self._text("target", "Target", "192.168.1.0/24", hint="IP, hostname, subnet (e.g., 192.168.1.0/24 or 192.168.1.1-100)")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._spin("timeout_ms", "Timeout (ms)", 50, 5000, 500)
         self._spin("retries", "Retries", 0, 10, 2)
         self._stretch()
@@ -923,7 +985,6 @@ class NetdiscoverPanel(ToolPanel):
         self._text("target", "Subnet (CIDR)", "192.168.1.0/24", hint="e.g., 192.168.1.0/24 (not used in passive/continuous mode)")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         # Set default to fast scan
         combo.setCurrentText("Fast Active Scan")
         self._combo("mode", "Mode", ["active", "passive", "continuous"])
@@ -948,7 +1009,6 @@ class UPnPDiscoveryPanel(ToolPanel):
         self._text("target", "Target IP", "192.168.1.1", hint="Router IP (local network works best)")
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._text("port", "Port(s)", "1900", hint="UPnP port (default: 1900)")
         self._text("script", "NSE Scripts", "upnp-info", hint="e.g., upnp-info, broadcast-upnp-info")
         self._add_section("⚠️ Note: TCP scans work without root. UDP requires sudo.")
@@ -1100,7 +1160,6 @@ class BulkNmapPanel(ToolPanel):
         self._text_area("targets", "Hosts / IPs", "scanme.nmap.org\n8.8.8.8\ngoogle.com", multiline=True)
         self._add_section("Scan Configuration")
         combo = self._combo("preset", "Preset", presets)
-        combo.setMinimumWidth(280)
         self._text("port_spec", "Port Override", "", hint="optional, e.g. 80,443 or 1-1000")
         self._text("custom_flags", "Extra Flags", "", hint="e.g. --script=http-title")
         self._add_section("Display Options")
