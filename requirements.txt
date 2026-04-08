@@ -20,6 +20,7 @@ lxml>=4.9.0               # faster HTML parser for bs4
 urllib3>=2.0.0
 
 # ── System Tools (install via package manager, not pip) ─────────────────────
+# Qt/X11 (REQUIRED for PyQt6 on Linux): sudo apt install libxcb-cursor0 libxcb1 libxcb-xkb1 libxcb-randr0
 # traceroute: sudo apt install traceroute    (Debian/Ubuntu)
 #             sudo dnf install traceroute    (Fedora/RHEL)
 #             sudo pacman -S traceroute      (Arch)
