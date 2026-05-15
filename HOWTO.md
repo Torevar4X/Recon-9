@@ -1,4 +1,4 @@
-# AGENTS.md - Recon 9 OSINT Application
+# HOWTO.md - Recon 9 OSINT Application
 
 ## Overview
 Recon 9 is a modular OSINT desktop application built with Python 3.10+ and PyQt6. It features a dark GitHub-inspired theme and performs network reconnaissance tasks including DNS lookups, port scanning, WHOIS queries, and web analysis.
