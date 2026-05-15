@@ -71,12 +71,22 @@ def _run_with_streaming(cmd: List[str], timeout: int = 300, progress_callback: c
         stderr_lines = []
         start_time = time.time()
         
+<<<<<<< HEAD
+        # Set non-blocking I/O (Unix only)
+        if os.name != "nt":
+            import fcntl
+            flags = fcntl.fcntl(proc.stdout, fcntl.F_GETFL)
+            fcntl.fcntl(proc.stdout, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+            flags = fcntl.fcntl(proc.stderr, fcntl.F_GETFL)
+            fcntl.fcntl(proc.stderr, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+=======
         # Set non-blocking I/O
         import fcntl
         flags = fcntl.fcntl(proc.stdout, fcntl.F_GETFL)
         fcntl.fcntl(proc.stdout, fcntl.F_SETFL, flags | os.O_NONBLOCK)
         flags = fcntl.fcntl(proc.stderr, fcntl.F_GETFL)
         fcntl.fcntl(proc.stderr, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+>>>>>>> origin/main
         
         # ANSI escape code pattern (for filtering)
         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
