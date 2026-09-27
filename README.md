@@ -21,7 +21,7 @@ built with **Python 3.10+** and **PyQt6**. for information gathering IPS - WEBSI
 ## ⚙ Installation
 
 ```bash
-# 1. git clone https://github.com/Torevar4X/Recon-9.git
+1. git clone https://github.com/Torevar4X/Recon-9.git
 cd recon-9
 
 # 2. Create a virtual environment (recommended)
